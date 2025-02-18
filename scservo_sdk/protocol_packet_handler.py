@@ -528,3 +528,10 @@ class protocol_packet_handler(object):
         _, result, _ = self.txRxPacket(txpacket)
 
         return result
+
+    def scan_ids(self, start=0, end=253):
+        for scs_id in range(start, end+1):
+            _, result, _ = self.ping(scs_id)
+            if result == COMM_SUCCESS:
+                return scs_id
+        return 254

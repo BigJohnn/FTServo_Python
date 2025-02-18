@@ -18,7 +18,7 @@ from scservo_sdk import *                      # Uses FTServo SDK library
 # Initialize PortHandler instance
 # Set the port path
 # Get methods and members of PortHandlerLinux or PortHandlerWindows
-portHandler = PortHandler('/dev/ttyUSB0')# ex) Windows: "COM1"   Linux: "/dev/ttyUSB0" Mac: "/dev/tty.usbserial-*"
+portHandler = PortHandler('/dev/tty.usbmodem58FA0830591')# ex) Windows: "COM1"   Linux: "/dev/ttyUSB0" Mac: "/dev/tty.usbserial-*"
 
 # Initialize PacketHandler instance
 # Get methods and members of Protocol
@@ -38,9 +38,13 @@ else:
     print("Failed to change the baudrate")
     quit()
 
-while 1:
+scs_id= packetHandler.ReadID()
+if 254 == scs_id:
+    print('no valid servo connected!!')
+
+while True:
     # Servo (ID1) runs at a maximum speed of V=60 * 0.732=43.92rpm and an acceleration of A=50 * 8.7deg/s ^ 2 until it reaches position P1=4095
-    scs_comm_result, scs_error = packetHandler.WritePosEx(1, 4095, 60, 50)
+    scs_comm_result, scs_error = packetHandler.WritePosEx(scs_id, 1950, 100, 50)
     if scs_comm_result != COMM_SUCCESS:
         print("%s" % packetHandler.getTxRxResult(scs_comm_result))
     elif scs_error != 0:
@@ -49,7 +53,7 @@ while 1:
     time.sleep(((4095-0)/(60*50) + (60*50)/(50*100) + 0.05))#[(P1-P0)/(V*50)] + [(V*50)/(A*100)] + 0.05
     
     # Servo (ID1) runs at a maximum speed of V=60 * 0.732=43.92rpm and an acceleration of A=50 * 8.7deg/s ^ 2 until P0=0 position
-    scs_comm_result, scs_error = packetHandler.WritePosEx(1, 0, 60, 50)
+    scs_comm_result, scs_error = packetHandler.WritePosEx(scs_id, 2200, 100, 50)
     if scs_comm_result != COMM_SUCCESS:
         print("%s" % packetHandler.getTxRxResult(scs_comm_result))
     elif scs_error != 0:

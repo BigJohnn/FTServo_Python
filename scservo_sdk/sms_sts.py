@@ -109,3 +109,97 @@ class sms_sts(protocol_packet_handler):
     def unLockEprom(self, scs_id):
         return self.write1ByteTxRx(scs_id, SMS_STS_LOCK, 0)
 
+    def ReadCurrent(self, scs_id):
+        """
+        读取实时电流值（单位：mA）
+        返回：电流值(有符号), 通信结果, 错误码
+        """
+        # 读取两个字节的原始电流数据（69-70地址）
+        raw_current, scs_comm_result, scs_error = self.read2ByteTxRx(scs_id, SMS_STS_PRESENT_CURRENT_L)
+        
+        # 假设6.5mA/bit的转换比例（具体需参考手册）
+        current = self.scs_tohost(raw_current, 15) * 6.5  # 15表示16位有符号数
+        return current, scs_comm_result, scs_error
+
+    def ReadVoltage(self, scs_id):
+        """
+        读取实时电压（单位：0.1V）
+        返回：电压值, 通信结果, 错误码
+        """
+        voltage, result, error = self.read1ByteTxRx(scs_id, SMS_STS_PRESENT_VOLTAGE)
+        return voltage * 0.1, result, error  # 根据手册实际转换比例调整
+
+    def ReadTemperature(self, scs_id):
+        """
+        读取实时温度（单位：摄氏度）
+        返回：温度值, 通信结果, 错误码
+        """
+        return self.read1ByteTxRx(scs_id, SMS_STS_PRESENT_TEMPERATURE)
+
+    def ReadLoad(self, scs_id):
+        """
+        读取实时负载（单位：%）
+        返回：负载百分比(有符号), 通信结果, 错误码
+        """
+        raw_load, result, error = self.read2ByteTxRx(scs_id, SMS_STS_PRESENT_LOAD_L)
+        # 转换为有符号百分比（正=逆时针负载，负=顺时针负载）
+        load_percent = self.scs_tohost(raw_load, 15) * 0.1  # 根据手册调整比例系数
+        return load_percent, result, error
+
+    def ReadID(self):
+        """
+        读取舵机ID
+        参数:
+            scs_id: 舵机ID,默认为广播ID(0xFE)
+        返回：ID值, 通信结果, 错误码
+        """
+        return self.scan_ids()
+
+    def ReadAngleLimits(self, scs_id):
+        """
+        读取舵机最大最小角度限制
+        返回：最小角度, 最大角度, 通信结果, 错误码
+        """
+        # 读取最小角度限制(2字节)
+        min_angle, result1, error1 = self.read2ByteTxRx(scs_id, SMS_STS_MIN_ANGLE_LIMIT_L)
+        
+        # 读取最大角度限制(2字节) 
+        max_angle, result2, error2 = self.read2ByteTxRx(scs_id, SMS_STS_MAX_ANGLE_LIMIT_L)
+
+        # 返回通信错误中较严重的一个
+        if result1 != COMM_SUCCESS:
+            return min_angle, max_angle, result1, error1
+        elif result2 != COMM_SUCCESS:
+            return min_angle, max_angle, result2, error2
+            
+        return min_angle, max_angle, COMM_SUCCESS, 0
+    
+    def WriteAngleLimits(self, scs_id, min_angle, max_angle):
+        """
+        设置舵机最大最小角度限制
+        参数:
+            scs_id: 舵机ID
+            min_angle: 最小角度限制值(0~4095)
+            max_angle: 最大角度限制值(0~4095)
+        返回: 通信结果, 错误码
+        """
+        # 写入最小角度限制(2字节)
+        result1, error1 = self.write2ByteTxRx(scs_id, SMS_STS_MIN_ANGLE_LIMIT_L, min_angle)
+        
+        # 写入最大角度限制(2字节)
+        result2, error2 = self.write2ByteTxRx(scs_id, SMS_STS_MAX_ANGLE_LIMIT_L, max_angle)
+        
+        # 返回通信错误中较严重的一个
+        if result1 != COMM_SUCCESS:
+            return result1, error1
+        return result2, error2
+    
+    def TorqueEnable(self, scs_id, enable):
+        """
+        设置舵机扭矩开关
+        参数:
+            scs_id: 舵机ID
+            enable: 0=关闭扭力输出, 1=打开扭力输出, 128=当前位置校正为2048
+        返回: 通信结果, 错误码
+        """
+        return self.write1ByteTxRx(scs_id, SMS_STS_TORQUE_ENABLE, enable)
